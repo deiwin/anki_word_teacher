@@ -39,25 +39,25 @@ def cleanup(s)
   s.downcase.gsub /[\s,.:]/, ''
 end
 
-highlights.map!{|h| {:name => cleanup(h['highlight'])} }
+highlights.map!{|h| cleanup(h['highlight'])}.uniq!
 
 highlights.keep_if do |h|
-  ! ws.include? h[:name]
+  ! ws.include? h
 end
 
-new_defs = highlights.map do |h|
+new_defs = highlights.map do |name|
   wdef = "Definitions:\n"
-  Wordnik.word.get_definitions(h[:name]).each do |definition|
+  Wordnik.word.get_definitions(name).each do |definition|
     wdef += " - " + definition['text'] + "\n"
   end
   wdef += "\nExamples:\n"
-  Wordnik.word.get_examples(h[:name])['examples'].each do |example|
+  Wordnik.word.get_examples(name)['examples'].each do |example|
     wdef += " - " + example['text'] + "\n"
   end
   wdef += "\nSynonyms:\n"
-  wdef += " - " + Wordnik.word.get_related(h[:name], :type => 'synonym')[0]['words'].join(', ')
+  wdef += " - " + Wordnik.word.get_related(name, :type => 'synonym')[0]['words'].join(', ')
   puts wdef
-  {:name => h[:name], :def => wdef}
+  {:name => name, :def => wdef}
 end
 
 unless new_defs.empty?
