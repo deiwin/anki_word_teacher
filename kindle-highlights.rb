@@ -39,7 +39,7 @@ end
 ws = saved_words[0].map{|w| w[:front] }
 
 def cleanup(s)
-  s.downcase.gsub /[\s,.:]/, ''
+  s.downcase.gsub /[\s,.:'"()]/, ''
 end
 
 highlights.map!{|h| cleanup(h['highlight'])}.uniq!
@@ -49,19 +49,32 @@ highlights.keep_if do |h|
 end
 
 new_defs = highlights.map do |name|
+  next unless (defs = Wordnik.word.get_definitions(name, :use_canonical => true)) && 
+    !defs.empty?
   wdef = "Definitions:<br>"
-  Wordnik.word.get_definitions(name).each do |definition|
+  defs.each do |definition|
     wdef += " - " + definition['text'] + "<br>"
   end
-  wdef += "<br>Examples:<br>"
-  Wordnik.word.get_examples(name)['examples'].each do |example|
-    wdef += " - " + example['text'] + "<br>"
+  if ((examples = Wordnik.word.get_examples(name)) && 
+      (examples = examples['examples']) &&
+      !examples.empty?)
+    wdef += "<br>Examples:<br>"
+    examples.each do |example|
+      wdef += " - " + example['text'] + "<br>"
+    end
   end
-  wdef += "<br>Synonyms:<br>"
-  wdef += " - " + Wordnik.word.get_related(name, :type => 'synonym')[0]['words'].join(', ')
+  if ((syns = Wordnik.word.get_related(name, :type => 'synonym')) && 
+      !syns.empty? &&
+      (syns = syns[0]) &&
+      !syns.empty? &&
+      (syns = syns['words']) &&
+      !syns.empty?) 
+    wdef += "<br>Synonyms:<br>"
+    wdef += " - " + syns.join(', ')
+  end
   puts wdef
   {:front => name, :back => wdef, :tag => 'kindle cloud-atlas'}
-end
+end.compact
 
 begin
   CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
