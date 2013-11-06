@@ -64,6 +64,7 @@ new_defs = words.map do |w|
         !syns.empty?) 
       wdef += "<br>Synonyms:<br>"
       wdef += " - " + syns.join(', ')
+      wdef += "<br>"
     end
     # Examples
     if ((examples = Wordnik.word.get_examples(w[:word])) && 
