@@ -16,10 +16,11 @@ Wordnik.configure do |config|
   config.logger = Logger.new('/dev/null')
 end
 
-kindleClient = KindleWords::Client.new
-evernoteClient = EvernoteWords::Client.new
+clients = [KindleWords::Client.new, EvernoteWords::Client.new]
 
-words = kindleClient.getWords + evernoteClient.getWords
+words = clients.reduce([]) do |memo, client|
+  memo + client.getWords
+end
 
 # Load the file.
 saved_words = YAML.load_stream(File.open('saved_words.yaml'))
@@ -41,22 +42,18 @@ words.keep_if do |w|
   ! ws.include? w[:word]
 end
 
+puts "Start fetching definitions for " + words.length.to_s + " words"
+
 new_defs = words.map do |w|
   next unless (defs = Wordnik.word.get_definitions(w[:word], :use_canonical => true)) && 
     !defs.empty?
+  # Defintions
   wdef = "Definitions:<br>"
   defs.each do |definition|
-    wdef += " - " + definition['text'] + "<br>"
+    wdef += " - " + definition['word'] + ": " + definition['text'] + "<br>"
   end
-  if ((examples = Wordnik.word.get_examples(w[:word])) && 
-      (examples = examples['examples']) &&
-      !examples.empty?)
-    wdef += "<br>Examples:<br>"
-    examples.each do |example|
-      wdef += " - " + example['text'] + "<br>"
-    end
-  end
-  if ((syns = Wordnik.word.get_related(w[:word], :type => 'synonym')) && 
+  # Synonyms
+  if ((syns = Wordnik.word.get_related(w[:word], :type => 'synonym', :use_canonical => true)) && 
       !syns.empty? &&
       (syns = syns[0]) &&
       !syns.empty? &&
@@ -65,8 +62,19 @@ new_defs = words.map do |w|
     wdef += "<br>Synonyms:<br>"
     wdef += " - " + syns.join(', ')
   end
+  # Examples
+  if ((examples = Wordnik.word.get_examples(w[:word])) && 
+      (examples = examples['examples']) &&
+      !examples.empty?)
+    wdef += "<br>Examples:<br>"
+    examples.each do |example|
+      wdef += " - " + example['text'] + "<br>"
+    end
+  end
   {:front => w[:word], :back => wdef, :tag => w[:tags].join(' ')}
 end.compact
+
+puts "Prepearing " + new_defs.length.to_s + " new words for import"
 
 begin
   CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
