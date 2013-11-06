@@ -33,7 +33,7 @@ end
 ws = saved_words[0].map{|w| w[:front] }
 
 def cleanup(s)
-  s.downcase.gsub /[\s,.:'"()!?;]/, ''
+  s.downcase.strip.gsub(/([,.:"()!?;])|(&lsquo)/, '').gsub(/&rsquo$/, '').gsub(/&rsquo/,'\'')
 end
 
 words.map!{|w| w[:word] = cleanup(w[:word]); w}.uniq!
@@ -45,75 +45,64 @@ end
 puts "Start fetching definitions for " + words.length.to_s + " words"
 
 new_defs = words.map do |w|
-  next unless (defs = Wordnik.word.get_definitions(w[:word], :use_canonical => true)) && 
+  unless (defs = Wordnik.word.get_definitions(w[:word], :use_canonical => true)) && 
     !defs.empty?
-  # Defintions
-  wdef = "Definitions:<br>"
-  defs.each do |definition|
-    wdef += " - " + definition['word'] + ": " + definition['text'] + "<br>"
-  end
-  # Synonyms
-  if ((syns = Wordnik.word.get_related(w[:word], :type => 'synonym', :use_canonical => true)) && 
-      !syns.empty? &&
-      (syns = syns[0]) &&
-      !syns.empty? &&
-      (syns = syns['words']) &&
-      !syns.empty?) 
-    wdef += "<br>Synonyms:<br>"
-    wdef += " - " + syns.join(', ')
-  end
-  # Examples
-  if ((examples = Wordnik.word.get_examples(w[:word])) && 
-      (examples = examples['examples']) &&
-      !examples.empty?)
-    wdef += "<br>Examples:<br>"
-    examples.each do |example|
-      wdef += " - " + example['text'] + "<br>"
+    puts "  No definition found for '" + w[:word] + "'."
+    next
+  else
+    # Defintions
+    wdef = "Definitions:<br>"
+    defs.each do |definition|
+      wdef += " - " + definition['word'] + ": " + definition['text'] + "<br>"
     end
+    # Synonyms
+    if ((syns = Wordnik.word.get_related(w[:word], :type => 'synonym', :use_canonical => true)) && 
+        !syns.empty? &&
+        (syns = syns[0]) &&
+        !syns.empty? &&
+        (syns = syns['words']) &&
+        !syns.empty?) 
+      wdef += "<br>Synonyms:<br>"
+      wdef += " - " + syns.join(', ')
+    end
+    # Examples
+    if ((examples = Wordnik.word.get_examples(w[:word])) && 
+        (examples = examples['examples']) &&
+        !examples.empty?)
+      wdef += "<br>Examples:<br>"
+      examples.each do |example|
+        wdef += " - " + example['text'] + "<br>"
+      end
+    end
+    {:front => w[:word], :back => wdef, :tag => w[:tags].join(' ')}
   end
-  {:front => w[:word], :back => wdef, :tag => w[:tags].join(' ')}
 end.compact
 
-puts "Prepearing " + new_defs.length.to_s + " new words for import"
+unless new_defs.empty?
+  puts "Prepearing " + new_defs.length.to_s + " new words for import"
 
-begin
-  CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
-    new_defs.each do |value|
-      csv << value.values
+  begin
+    CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
+      new_defs.each do |value|
+        csv << value.values
+      end
+    end
+
+    puts "Please manually open Anki select import csv from the Tools menu. Then close Anki and press ENTER to continue"
+    STDIN.gets.chomp
+
+  ensure
+    begin
+      File.delete(IMPORT_FILE)
+    rescue
     end
   end
-
-  puts "Please manually open Anki select import csv from the Tools menu. Then close Anki and press ENTER to continue"
-  STDIN.gets.chomp
-
-  #RubyPython.start
-
-  #sys = RubyPython.import("sys")
-  #sys.path.append("/usr/share/anki")
-  #sys.path.append("/usr/share/anki/anki")
-  #p sys.version
-  #p sys.path
-  #Collection = RubyPython.import("Collection")
-  #TextImporter = RubyPython.import("importing.TextImporter")
-  #col = Collection("../Anki/User 1/collection.anki2")
-
-  #p col.decks.rubify
-
-  #cPickle = RubyPython.import("cPickle")
-  #p cPickle.dumps("Testing RubyPython.").rubify
-
-  #RubyPython.stop
-
-ensure
-  begin
-    File.delete(IMPORT_FILE)
-  rescue
+  unless new_defs.empty?
+    new_saved_words = saved_words[0] + new_defs
+    File.open('saved_words.yaml', 'w') do |file|
+      file.write(YAML.dump(new_saved_words))
+    end
   end
+else
+  puts "No new words to import"
 end
-unless new_defs.empty?
-  new_saved_words = saved_words[0] + new_defs
-  File.open('saved_words.yaml', 'w') do |file|
-    file.write(YAML.dump(new_saved_words))
-  end
-end
-
