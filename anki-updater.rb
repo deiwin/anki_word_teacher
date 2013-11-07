@@ -33,7 +33,7 @@ end
 ws = saved_words[0].map{|w| w[:front] }
 
 def cleanup(s)
-  s.downcase.strip.gsub(/([,.:"()!?;])|(&lsquo)/, '').gsub(/&rsquo$/, '').gsub(/&rsquo/,'\'')
+  s.downcase.strip.gsub(/([,.:"()!?;])|(&lsquo)/, '').gsub(/&rsquo$/, '').gsub(/&rsquo/,'\'').gsub(/&oelig/, 'oe')
 end
 
 words.map!{|w| w[:word] = cleanup(w[:word]); w}.uniq!
