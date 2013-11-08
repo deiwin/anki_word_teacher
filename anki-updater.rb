@@ -1,8 +1,6 @@
 #!/usr/bin/ruby
 
-require 'yaml'
-require 'csv'
-%w(rubygems wordnik).each {|lib| require lib}
+%w(rubygems wordnik yaml csv htmlentities).each {|lib| require lib}
 #require 'rubypython'
 
 $LOAD_PATH.push(File.expand_path(File.dirname(__FILE__)))
@@ -32,8 +30,10 @@ end
 # name -> def
 ws = saved_words[0].map{|w| w[:front] }
 
+@htmle = HTMLEntities.new
+
 def cleanup(s)
-  s.downcase.strip.gsub(/([,.:"()!?;])|(&lsquo)/, '').gsub(/&rsquo$/, '').gsub(/&rsquo/,'\'').gsub(/&oelig/, 'oe')
+  @htmle.decode(s).downcase.strip.gsub(/([,.:"“”()!?;])|(^')|(^‘)/, '').gsub(/(’$)|('$)/, '')
 end
 
 words.map!{|w| w[:word] = cleanup(w[:word]); w}.uniq!
