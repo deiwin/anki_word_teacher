@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-%w(rubygems wordnik yaml csv htmlentities).each {|lib| require lib}
+%w(rubygems wordnik yaml csv htmlentities progressbar).each {|lib| require lib}
 #require 'rubypython'
 
 $LOAD_PATH.push(File.expand_path(File.dirname(__FILE__)))
@@ -42,26 +42,68 @@ words.keep_if do |w|
   ! ws.include? w[:word]
 end
 
-puts "Start fetching definitions for " + words.length.to_s + " words"
+def getCanonicalForm(w)
+  w =~ /(((plural form)|(past tense)|(past participle)|(variant)).*of)/i
+  if ($' && (can = cleanup($')) && !can.empty?)
+    can
+  else
+    nil
+  end    
+end
 
-new_defs = words.map do |w|
-  unless (defs = Wordnik.word.get_definitions(w[:word], :use_canonical => true)) && 
-    !defs.empty?
-    puts "  No definition found for '" + w[:word] + "'."
-    next
+def getSynsFor(w)
+  if ((syns = Wordnik.word.get_related(w, :type => 'synonym', :use_canonical => true)) && 
+      !syns.empty? &&
+      (syns = syns[0]) &&
+      !syns.empty? &&
+      (syns = syns['words']) &&
+      !syns.empty?) 
+    syns
+  else
+    []
+  end
+end
+
+def getWordDefs(w)
+  if (defs = Wordnik.word.get_definitions(w, :use_canonical => true)) && 
+      !defs.empty?
+    defs
+  else
+    [] 
+  end
+end
+
+@no_defs = []
+
+def getWordInfo(w)
+  defs = []
+  syns = []
+
+  recDefs = lambda do |w|
+    if (_defs = getWordDefs(w)) && !_defs.empty?
+      defs += _defs
+      syns += getSynsFor(w)
+      if (_defs.length == 1 && 
+          w == _defs.first['word'] && 
+          (can = getCanonicalForm(_defs.first['text'])))
+        recDefs.call(can)
+      end
+    else
+       @no_defs << "  No definition found for '#{w}'."
+    end
+  end
+
+  recDefs.call(w[:word])
+  if defs.empty?
+    nil
   else
     # Defintions
     wdef = "Definitions:<br>"
     defs.each do |definition|
-      wdef += " - " + definition['word'] + ": " + definition['text'] + "<br>"
+      wdef += " - #{definition['word']}(#{definition['partOfSpeech']}): #{definition['text']}<br>"
     end
     # Synonyms
-    if ((syns = Wordnik.word.get_related(w[:word], :type => 'synonym', :use_canonical => true)) && 
-        !syns.empty? &&
-        (syns = syns[0]) &&
-        !syns.empty? &&
-        (syns = syns['words']) &&
-        !syns.empty?) 
+    if (!syns.empty?)
       wdef += "<br>Synonyms:<br>"
       wdef += " - " + syns.join(', ')
       wdef += "<br>"
@@ -77,14 +119,27 @@ new_defs = words.map do |w|
     end
     {:front => w[:word], :back => wdef, :tag => w[:tags].join(' ')}
   end
-end.compact
+end
 
-unless new_defs.empty?
-  puts "Prepearing " + new_defs.length.to_s + " new words for import"
+puts "Fetching definitions for #{words.length.to_s} words"
+ProgressBar.new("Wordnik", words.length) do |pbar|
+  @new_defs = words.map do |w|
+    info = getWordInfo(w)
+    pbar.inc
+    info || next
+  end.compact
+end
+
+@no_defs.each do |message|
+  puts message
+end
+
+unless @new_defs.empty?
+  puts "Prepearing " + @new_defs.length.to_s + " new words for import"
 
   begin
     CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
-      new_defs.each do |value|
+      @new_defs.each do |value|
         csv << value.values
       end
     end
@@ -98,8 +153,8 @@ unless new_defs.empty?
     rescue
     end
   end
-  unless new_defs.empty?
-    new_saved_words = saved_words[0] + new_defs
+  unless @new_defs.empty?
+    new_saved_words = saved_words[0] + @new_defs
     File.open('saved_words.yaml', 'w') do |file|
       file.write(YAML.dump(new_saved_words))
     end
