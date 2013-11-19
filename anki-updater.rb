@@ -44,34 +44,46 @@ words.keep_if do |w|
 end
 
 def getCanonicalForm(w)
-  w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)).*of)|(\sa\s)/i
-  if ($' && (can = cleanup($')) && !can.empty?)
-    can
-  else
-    nil
-  end    
+  def formOf(w)
+    (w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)|(manner))[^.;]*of)/i) &&
+    cleanup($')
+  end
+
+  def aSomething(w)
+    (w =~ /^a\s([\w\-]+)/i) && cleanup($1)
+  end
+
+  def inManner(w)
+    (w =~ /in.*?\s([\w\-]+)\smanner/i) && cleanup($1)
+  end
+
+  def trait(w)
+    (w =~ /a(?:n)?.*?\s([\w\-]+)\s(?:(?:trait)|(?:mannerism))/i) && cleanup($1)
+  end
+
+  def cond(w)
+    (w =~ /condition\sof\sbeing\s([\w\-]+)/i) && cleanup($1)
+  end
+
+  (can = formOf(w) || aSomething(w) || inManner(w) || trait(w) || cond(w)) && !can.empty? && can
 end
 
 def getSynsFor(w)
-  if ((syns = Wordnik.word.get_related(w, :type => 'synonym', :use_canonical => true)) && 
-      !syns.empty? &&
-      (syns = syns[0]) &&
-      !syns.empty? &&
-      (syns = syns['words']) &&
-      !syns.empty?) 
-    syns
-  else
-    []
-  end
+  (syns = Wordnik.word.get_related(w, :type => 'synonym', :use_canonical => true)) && 
+  !syns.empty? &&
+  (syns = syns[0]) &&
+  !syns.empty? &&
+  (syns = syns['words']) &&
+  !syns.empty? &&
+  syns ||
+  []
 end
 
 def getWordDefs(w)
-  if (defs = Wordnik.word.get_definitions(w, :use_canonical => true)) && 
-      !defs.empty?
-    defs
-  else
-    [] 
-  end
+  (defs = Wordnik.word.get_definitions(w, :use_canonical => true)) && 
+  !defs.empty? &&
+  defs ||
+  [] 
 end
 
 @messages = []
@@ -87,10 +99,15 @@ def getWordInfo(w)
       if (!_syns.empty?)
         syns[w] = _syns
       end
-      if (_defs.length == 1 && 
-          w == _defs.first['word'] && 
-          (can = getCanonicalForm(_defs.first['text'])))
-        @messages << "    Recursively looking for #{w} -> #{can}"
+      can = nil
+      cansEqual = _defs.reduce(true) do |mem, d|
+        mem && 
+        (_can = getCanonicalForm(d['text'])) && 
+        ((!can && (can = _can)) || _can == can)
+      end
+      puts "#{can}, #{cansEqual}, #{w}"
+      if (can && cansEqual && can != w)
+        @messages << "  Recursively looking for #{w} -> #{can}"
         recDefs.call(can)
       end
     else
