@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-%w(rubygems wordnik yaml csv htmlentities).each {|lib| require lib}
+%w(rubygems wordnik yaml csv htmlentities green_shoes).each {|lib| require lib}
 $LOAD_PATH.push(File.expand_path(File.dirname(__FILE__)))
 require "evernote.rb"
 require "kindle.rb"
@@ -55,16 +55,35 @@ class Importer
     init_saved_words
   end
 
-  def get_new_defs(inc = nil)
-    new_words = get_new_words
-    @logger.call "Fetching definitions for #{new_words.length.to_s} words"
-    new_words.map do |w|
+  def num_new_words
+    @new_words ||= get_new_words
+    @new_words.length
+  end
+
+  def fetch_new_defs(inc = nil)
+    @new_words ||= get_new_words
+    @logger.call "Fetching definitions for #{@new_words.length.to_s} words"
+    @new_defs = @new_words.map do |w|
       info = get_word_info(w[:word], w[:tags])
       inc.call if inc
       info || next
     end.compact
   end
 
+  def export_csv
+    CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
+      @new_defs.each do |value|
+        csv << value.values
+      end
+    end
+  end
+
+  def delete_csv
+    begin
+      File.delete(IMPORT_FILE)
+    rescue
+    end
+  end
 
 private
   def init_clients(logger)
@@ -200,33 +219,67 @@ private
 
 end
 
-imp = Importer.new
-@new_defs = imp.get_new_defs
-unless @new_defs.empty?
-  puts "Prepearing " + @new_defs.length.to_s + " new words for import"
+Shoes.app title: "Anki Importer 0.1" do
+  @main_stack = stack do
+    button "Start fetching"
+    @p = progress left: 10, top: 100, width: width-20
+    flow do
+      para "Status: "
+      @status = para "Setting up"
+    end
+  end
 
-  begin
-    CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
-      @new_defs.each do |value|
-        csv << value.values
+  Thread.new do
+    a = animate do |i|
+      @p.fraction = (i % 100) / 100.0
+    end
+
+    @imp = Importer.new ->(s){puts s;@status.replace s}
+    @total_words = @imp.num_new_words
+    # Finish init
+    a.stop
+    @p.fraction = 0
+    @status.replace "Initialization finished"
+
+    def fetch_defs
+      i = 0
+      a = animate do |_|
+        @p.fraction = i / @total_words
+      end
+
+      @new_defs = @imp.fetch_new_defs -> {i+=1}
+      a.stop
+      @p.fraction = 0
+      @status.replace "Finished fetching word definitions"
+    end
+
+    fetch_defs
+
+    @main_stack.append do 
+      button "Refetch defs" do
+        fetch_defs
+      end
+      @b = button "Create CSV" do
+        @imp.export_csv
+        @b.replace "Exit" do 
+          @imp.delete_csv
+          close
+        end
       end
     end
-
-    puts "Please manually open Anki select import csv from the Tools menu. Then close Anki and press ENTER to continue"
-    STDIN.gets.chomp
-
-  ensure
-    begin
-      File.delete(IMPORT_FILE)
-    rescue
-    end
   end
-  unless @new_defs.empty?
-    new_saved_words = saved_words[0] + @new_defs
-    File.open('saved_words.yaml', 'w') do |file|
-      file.write(YAML.dump(new_saved_words))
-    end
-  end
-else
-  puts "No new words to import"
+
+
+
+
+  
+
+=begin
+      unless @new_defs.empty?
+        new_saved_words = saved_words[0] + @new_defs
+        File.open('saved_words.yaml', 'w') do |file|
+          file.write(YAML.dump(new_saved_words))
+        end
+      end
+=end
 end
