@@ -10,29 +10,31 @@ require "kindle.rb"
 module StringUtils
   @@htmle = HTMLEntities.new
 
-  def self.getCanonicalForm(w)
-    def formOf(w)
+  class Canonizer
+    def self.formOf(w)
       (w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)|(manner))[^.;]*of)/i) &&
       StringUtils.cleanup($')
     end
 
-    def aSomething(w)
+    def self.aSomething(w)
       (w =~ /^a\s([\w\-]+)/i) && StringUtils.cleanup($1)
     end
 
-    def inManner(w)
+    def self.inManner(w)
       (w =~ /in.*?\s([\w\-]+)\smanner/i) && StringUtils.cleanup($1)
     end
 
-    def trait(w)
+    def self.trait(w)
       (w =~ /a(?:n)?.*?\s([\w\-]+)\s(?:(?:trait)|(?:mannerism))/i) && StringUtils.cleanup($1)
     end
 
-    def cond(w)
+    def self.cond(w)
       (w =~ /condition\sof\sbeing\s([\w\-]+)/i) && StringUtils.cleanup($1)
     end
+  end
 
-    (can = formOf(w) || aSomething(w) || inManner(w) || trait(w) || cond(w)) && !can.empty? && can
+  def self.getCanonicalForm(w)
+    (can = Canonizer.formOf(w) || Canonizer.aSomething(w) || Canonizer.inManner(w) || Canonizer.trait(w) || Canonizer.cond(w)) && !can.empty? && can
   end
 
   def self.cleanup(s)
@@ -76,13 +78,15 @@ class Importer
         csv << value.values
       end
     end
-  end
 
-  def delete_csv
+    yield IMPORT_FILE
+
     begin
       File.delete(IMPORT_FILE)
     rescue
     end
+
+    save_exported_words
   end
 
 private
@@ -104,14 +108,14 @@ private
   def init_saved_words
     def get_saved_words
       # Load the file.
-      saved_words = YAML.load_stream(File.open(SAVED_WORDS_FILE))
+      @saved_words_raw = YAML.load_stream(File.open(SAVED_WORDS_FILE))
 
       # Add a new key-value pair to the root of the first document.
-      if saved_words.empty? || saved_words[0].nil?
-        saved_words[0] = []
+      if @saved_words_raw.empty? || @saved_words_raw[0].nil?
+        @saved_words_raw[0] = []
       end
       
-      saved_words[0].map{|w| w[:front] }
+      @saved_words_raw[0].map{|w| w[:front] }
     end
 
     @saved_words ||= get_saved_words
@@ -218,9 +222,19 @@ private
     end
   end
 
+  def save_exported_words
+    unless @new_defs.empty?
+      new_saved_words = @saved_words_raw[0] + @new_defs
+      File.open(SAVED_WORDS_FILE, 'w') do |file|
+        file.write(YAML.dump(new_saved_words))
+      end
+    end
+  end
+
 end
 
 Shoes.app title: "Anki Importer 0.1" do
+  @logger = ->(s){puts s;@status.replace s}
   @main_stack = stack do
     button "Start fetching"
     @p = progress left: 10, top: 250, width: width-20
@@ -235,7 +249,7 @@ Shoes.app title: "Anki Importer 0.1" do
       @p.fraction = (i % 100) / 100.0
     end
 
-    @imp = Importer.new ->(s){puts s;@status.replace s}
+    @imp = Importer.new @logger
     @total_words = @imp.num_new_words
     # Finish init
     a.stop
@@ -252,6 +266,7 @@ Shoes.app title: "Anki Importer 0.1" do
       a.stop
       @p.fraction = 0
       @status.replace "Finished fetching word definitions"
+
     end
 
     fetch_defs
@@ -260,27 +275,19 @@ Shoes.app title: "Anki Importer 0.1" do
       button "Refetch defs" do
         fetch_defs
       end
-      @b = button "Create CSV" do
-        @imp.export_csv
-        @b.replace "Exit" do 
-          @imp.delete_csv
-          close
+      button "Finish" do
+        @export_thread = Thread.new do
+          @imp.export_csv do
+            @main_stack.append do
+              button "Done" do
+                @export_thread.run
+              end
+            end
+            Thread.stop
+            close
+          end
         end
       end
     end
   end
-
-
-
-
-  
-
-=begin
-      unless @new_defs.empty?
-        new_saved_words = saved_words[0] + @new_defs
-        File.open('saved_words.yaml', 'w') do |file|
-          file.write(YAML.dump(new_saved_words))
-        end
-      end
-=end
 end
