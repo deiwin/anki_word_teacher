@@ -173,15 +173,16 @@ private
       end
     end
 
-    rec_defs.call(w)
-    # Try mapping
-    if defs.empty? && (map = @word_mappings[w])
-      @logger.call "    Trying mapping #{w} -> #{map.inspect}"
+    # Force mapping
+    if map = @word_mappings[w]
+      @logger.call "    Mapping #{w} -> #{map.inspect}"
       if map.kind_of?(Array)
         map.each{|m| rec_defs.call(StringUtils.cleanup(m))}
       else
         rec_defs.call(StringUtils.cleanup(map))
       end
+    else
+      rec_defs.call(w)
     end
 
     return defs, syns
@@ -222,7 +223,7 @@ end
 Shoes.app title: "Anki Importer 0.1" do
   @main_stack = stack do
     button "Start fetching"
-    @p = progress left: 10, top: 100, width: width-20
+    @p = progress left: 10, top: 250, width: width-20
     flow do
       para "Status: "
       @status = para "Setting up"
