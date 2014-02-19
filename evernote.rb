@@ -7,12 +7,13 @@ module EvernoteWords
     #attr :authToken, :noteStore
     FILTER = "tag:#Word"
 
-    def initialize
-      puts "Start Evernote init"
+    def initialize(logger = -> (s){@logger.call s})
+      @logger = logger
+      @logger.call "Start Evernote init"
       initAuthToken
       initNoteStore
       initTagList
-      puts "Finish Everenote init"
+      @logger.call "Finish Everenote init"
     end
 
     def initAuthToken
@@ -24,8 +25,8 @@ module EvernoteWords
       @authToken = "<Auth-Token>"
 
       if @authToken == "your developer token"
-        puts "Please fill in your developer token"
-        puts "To get a developer token, visit https://sandbox.evernote.com/api/DeveloperToken.action"
+        @logger.call "Please fill in your developer token"
+        @logger.call "To get a developer token, visit https://sandbox.evernote.com/api/DeveloperToken.action"
         exit(1)
       end
     end
@@ -45,8 +46,8 @@ module EvernoteWords
       versionOK = userStore.checkVersion("Evernote EDAMTest (Ruby)",
                  Evernote::EDAM::UserStore::EDAM_VERSION_MAJOR,
                  Evernote::EDAM::UserStore::EDAM_VERSION_MINOR)
-      #puts "Is my Evernote API version up to date?  #{versionOK}"
-      #puts
+      #@logger.call "Is my Evernote API version up to date?  #{versionOK}"
+      #@logger.call
       exit(1) unless versionOK
 
       # Get the URL used to interact with the contents of the user's account
@@ -65,12 +66,12 @@ module EvernoteWords
     end
 
     def getWords
-      puts "Start fetching words from evernote"
+      @logger.call "Start fetching words from evernote"
       filter = Evernote::EDAM::NoteStore::NoteFilter.new
       filter.words = FILTER
       spec = Evernote::EDAM::NoteStore::NotesMetadataResultSpec.new
       notesMetadata = @noteStore.findNotesMetadata(@authToken, filter, 0, 9999, spec)
-      puts "Downloading content for " + notesMetadata.notes.length.to_s + " words"
+      @logger.call "Downloading content for " + notesMetadata.notes.length.to_s + " words"
 
       notesMetadata.notes.map do |meta|
         note = @noteStore.getNote(@authToken, meta.guid, true, false, false, false)

@@ -1,171 +1,207 @@
 #!/usr/bin/ruby
 
-%w(rubygems wordnik yaml csv htmlentities progressbar).each {|lib| require lib}
-#require 'rubypython'
-
+%w(rubygems wordnik yaml csv htmlentities).each {|lib| require lib}
 $LOAD_PATH.push(File.expand_path(File.dirname(__FILE__)))
 require "evernote.rb"
 require "kindle.rb"
+#require 'rubypython'
 
-IMPORT_FILE = "import.csv"
 
-Wordnik.configure do |config|
-  config.api_key = '<API-Key>'
-  config.logger = Logger.new('/dev/null')
-end
+module StringUtils
+  @@htmle = HTMLEntities.new
 
-clients = [KindleWords::Client.new, EvernoteWords::Client.new]
+  def self.getCanonicalForm(w)
+    def formOf(w)
+      (w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)|(manner))[^.;]*of)/i) &&
+      StringUtils.cleanup($')
+    end
 
-words = clients.reduce([]) do |memo, client|
-  memo + client.getWords
-end
+    def aSomething(w)
+      (w =~ /^a\s([\w\-]+)/i) && StringUtils.cleanup($1)
+    end
 
-# Load the file.
-saved_words = YAML.load_stream(File.open('saved_words.yaml'))
-@word_mappings = YAML.load_stream(File.open('mappings.yaml')).first
+    def inManner(w)
+      (w =~ /in.*?\s([\w\-]+)\smanner/i) && StringUtils.cleanup($1)
+    end
 
-# Add a new key-value pair to the root of the first document.
-if saved_words.empty? || saved_words[0].nil?
-  saved_words[0] = []
-end
-# name -> def
-ws = saved_words[0].map{|w| w[:front] }
+    def trait(w)
+      (w =~ /a(?:n)?.*?\s([\w\-]+)\s(?:(?:trait)|(?:mannerism))/i) && StringUtils.cleanup($1)
+    end
 
-@htmle = HTMLEntities.new
+    def cond(w)
+      (w =~ /condition\sof\sbeing\s([\w\-]+)/i) && StringUtils.cleanup($1)
+    end
 
-def cleanup(s)
-  @htmle.decode(s).downcase.strip.gsub(/([,.:"“”()!?;])|(^')|(^‘)/, '').gsub(/(’$)|('$)/, '')
-end
-
-words.map!{|w| w[:word] = cleanup(w[:word]); w}.uniq!
-
-words.keep_if do |w|
-  ! ws.include? w[:word]
-end
-
-def getCanonicalForm(w)
-  def formOf(w)
-    (w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)|(manner))[^.;]*of)/i) &&
-    cleanup($')
+    (can = formOf(w) || aSomething(w) || inManner(w) || trait(w) || cond(w)) && !can.empty? && can
   end
 
-  def aSomething(w)
-    (w =~ /^a\s([\w\-]+)/i) && cleanup($1)
+  def self.cleanup(s)
+    @@htmle.decode(s).downcase.strip.gsub(/([,.:"“”()!?;])|(^')|(^‘)/, '').gsub(/(’$)|('$)/, '')
   end
 
-  def inManner(w)
-    (w =~ /in.*?\s([\w\-]+)\smanner/i) && cleanup($1)
-  end
-
-  def trait(w)
-    (w =~ /a(?:n)?.*?\s([\w\-]+)\s(?:(?:trait)|(?:mannerism))/i) && cleanup($1)
-  end
-
-  def cond(w)
-    (w =~ /condition\sof\sbeing\s([\w\-]+)/i) && cleanup($1)
-  end
-
-  (can = formOf(w) || aSomething(w) || inManner(w) || trait(w) || cond(w)) && !can.empty? && can
 end
 
-def getSynsFor(w)
-  (syns = Wordnik.word.get_related(w, :type => 'synonym', :use_canonical => true)) && 
-  !syns.empty? &&
-  (syns = syns[0]) &&
-  !syns.empty? &&
-  (syns = syns['words']) &&
-  !syns.empty? &&
-  syns ||
-  []
-end
+class Importer
+  IMPORT_FILE = "import.csv"
+  MAPPINGS_FILE = "mappings.yaml"
+  SAVED_WORDS_FILE = "saved_words.yaml"
+  WORDNIK_API_KEY = "<Api-Key>"
 
-def getWordDefs(w)
-  (defs = Wordnik.word.get_definitions(w, :use_canonical => true)) && 
-  !defs.empty? &&
-  defs ||
-  [] 
-end
+  def initialize(logger = -> (s){puts s})
+    @logger = logger
+    init_clients(@logger)
+    init_wordnik
+    init_word_mappings
+    init_saved_words
+  end
 
-@messages = []
+  def get_new_defs(inc = nil)
+    new_words = get_new_words
+    @logger.call "Fetching definitions for #{new_words.length.to_s} words"
+    new_words.map do |w|
+      info = get_word_info(w[:word], w[:tags])
+      inc.call if inc
+      info || next
+    end.compact
+  end
 
-def getWordInfo(w)
-  defs = []
-  syns = {}
 
-  recDefs = lambda do |w|
-    if (_defs = getWordDefs(w)) && !_defs.empty?
-      defs += _defs
-      _syns = getSynsFor(w)
-      if (!_syns.empty?)
-        syns[w] = _syns
+private
+  def init_clients(logger)
+    @clients ||= [KindleWords::Client.new(logger), EvernoteWords::Client.new(logger)]
+  end
+
+  def init_wordnik
+    Wordnik.configure do |config|
+      config.api_key = WORDNIK_API_KEY
+      config.logger = Logger.new('/dev/null')
+    end
+  end
+
+  def init_word_mappings
+    @word_mappings ||= YAML.load_stream(File.open(MAPPINGS_FILE)).first
+  end
+
+  def init_saved_words
+    def get_saved_words
+      # Load the file.
+      saved_words = YAML.load_stream(File.open(SAVED_WORDS_FILE))
+
+      # Add a new key-value pair to the root of the first document.
+      if saved_words.empty? || saved_words[0].nil?
+        saved_words[0] = []
       end
-      can = nil
-      cansEqual = _defs.reduce(true) do |mem, d|
-        mem && 
-        (_can = getCanonicalForm(d['text'])) && 
-        ((!can && (can = _can)) || _can == can)
+      
+      saved_words[0].map{|w| w[:front] }
+    end
+
+    @saved_words ||= get_saved_words
+  end
+
+  def get_new_words
+    words = @clients.reduce([]) do |memo, client|
+      memo + client.getWords
+    end
+
+    words.map!{|w| w[:word] = StringUtils.cleanup(w[:word]); w}.uniq!
+
+    words.select do |w|
+      ! @saved_words.include? w[:word]
+    end
+  end
+
+  def get_syns_for(w)
+    (syns = Wordnik.word.get_related(w, :type => 'synonym', :use_canonical => true)) && 
+    !syns.empty? &&
+    (syns = syns[0]) &&
+    !syns.empty? &&
+    (syns = syns['words']) &&
+    !syns.empty? &&
+    syns ||
+    []
+  end
+
+  def get_word_defs(w)
+    (defs = Wordnik.word.get_definitions(w, :use_canonical => true)) && 
+    !defs.empty? &&
+    defs ||
+    [] 
+  end
+
+  def get_defs_syns(w)
+    defs = []
+    syns = {}
+
+    rec_defs = lambda do |w|
+      if (_defs = get_word_defs(w)) && !_defs.empty?
+        defs += _defs
+        _syns = get_syns_for(w)
+        if (!_syns.empty?)
+          syns[w] = _syns
+        end
+        can = nil
+        cansEqual = _defs.reduce(true) do |mem, d|
+          mem && 
+          (_can = StringUtils.getCanonicalForm(d['text'])) && 
+          ((!can && (can = _can)) || _can == can)
+        end
+        if (can && cansEqual && can != w)
+          @logger.call "  Recursively looking for #{w} -> #{can}"
+          rec_defs.call(can)
+        end
+      else
+         @logger.call "  No definition found for '#{w}'."
       end
-      puts "#{can}, #{cansEqual}, #{w}"
-      if (can && cansEqual && can != w)
-        @messages << "  Recursively looking for #{w} -> #{can}"
-        recDefs.call(can)
+    end
+
+    rec_defs.call(w)
+    # Try mapping
+    if defs.empty? && (map = @word_mappings[w])
+      @logger.call "    Trying mapping #{w} -> #{map.inspect}"
+      if map.kind_of?(Array)
+        map.each{|m| rec_defs.call(StringUtils.cleanup(m))}
+      else
+        rec_defs.call(StringUtils.cleanup(map))
       end
+    end
+
+    return defs, syns
+  end
+
+  def get_word_info(word, tags)
+    defs, syns = get_defs_syns(word)
+    if defs.empty?
+      nil
     else
-       @messages << "  No definition found for '#{w}'."
-    end
-  end
-
-  recDefs.call(w[:word])
-  # Try mapping
-  if defs.empty? && (map = @word_mappings[w[:word]])
-      @messages << "    Trying mapping #{w[:word]} -> #{map.inspect}"
-    if map.kind_of?(Array)
-      map.each{|m| recDefs.call(cleanup(m))}
-    else
-      recDefs.call(cleanup(map))
-    end
-  end
-  if defs.empty?
-    nil
-  else
-    # Defintions
-    wdef = "Definitions:<br>"
-    defs.each do |definition|
-      wdef += " - #{definition['word']}(#{definition['partOfSpeech']}): #{definition['text']}<br>"
-    end
-    # Synonyms
-    if (!syns.empty?)
-      wdef += "<br>Synonyms:<br>"
-      syns.each do |key, val|
-        wdef += " - #{key}: #{val.join(', ')}<br>"
+      # Defintions
+      wdef = "Definitions:<br>"
+      defs.each do |definition|
+        wdef += " - #{definition['word']}(#{definition['partOfSpeech']}): #{definition['text']}<br>"
       end
-    end
-    # Examples
-    if ((examples = Wordnik.word.get_examples(w[:word])) && 
-        (examples = examples['examples']) &&
-        !examples.empty?)
-      wdef += "<br>Examples:<br>"
-      examples.each do |example|
-        wdef += " - " + example['text'] + "<br>"
+      # Synonyms
+      if (!syns.empty?)
+        wdef += "<br>Synonyms:<br>"
+        syns.each do |key, val|
+          wdef += " - #{key}: #{val.join(', ')}<br>"
+        end
       end
+      # Examples
+      if ((examples = Wordnik.word.get_examples(word)) && 
+          (examples = examples['examples']) &&
+          !examples.empty?)
+        wdef += "<br>Examples:<br>"
+        examples.each do |example|
+          wdef += " - " + example['text'] + "<br>"
+        end
+      end
+      {:front => word, :back => wdef, :tag => tags.join(' ')}
     end
-    {:front => w[:word], :back => wdef, :tag => w[:tags].join(' ')}
   end
+
 end
 
-puts "Fetching definitions for #{words.length.to_s} words"
-ProgressBar.new("Wordnik", words.length) do |pbar|
-  @new_defs = words.map do |w|
-    info = getWordInfo(w)
-    pbar.inc
-    info || next
-  end.compact
-end
-
-@messages.each do |message|
-  puts message
-end
-
+imp = Importer.new
+@new_defs = imp.get_new_defs
 unless @new_defs.empty?
   puts "Prepearing " + @new_defs.length.to_s + " new words for import"
 
