@@ -1,4 +1,3 @@
  - Instead of the saved_words.yaml file, get the already imported words from Anki
  - Add ignored words
- - Add a way to manually find definitions for words that Wordnik doesn't find a definition for
  - Add a way to manually change definitions

@@ -22,6 +22,7 @@ end
 
 # Load the file.
 saved_words = YAML.load_stream(File.open('saved_words.yaml'))
+@word_mappings = YAML.load_stream(File.open('mappings.yaml')).first
 
 # Add a new key-value pair to the root of the first document.
 if saved_words.empty? || saved_words[0].nil?
@@ -94,6 +95,10 @@ def getWordInfo(w)
   end
 
   recDefs.call(w[:word])
+  # Try mapping
+  if defs.empty? && (map = @word_mappings[w[:word]])
+    recDefs.call(map)
+  end
   if defs.empty?
     nil
   else
