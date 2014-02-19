@@ -2,6 +2,7 @@
 from aqt import mw
 # import all of the Qt GUI library
 from aqt.qt import *
+#from anki.hooks import addHook
 from anki.importing import TextImporter
 
 def importCsv():
@@ -25,3 +26,9 @@ action = QAction("Import csv", mw)
 mw.connect(action, SIGNAL("triggered()"), importCsv)
 # and add it to the tools menu
 mw.form.menuTools.addAction(action)
+
+#def onSync(arg):
+  #if arg == "finalize":
+#  importCsv()
+
+#addHook("profileLoaded", onSync)
