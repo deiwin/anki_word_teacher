@@ -1,32 +1,25 @@
 #!/usr/bin/ruby
 
-require 'kindle_highlights'
 require 'yaml'
 require 'csv'
-require 'net/http'
-require 'xmlsimple'
 %w(rubygems wordnik).each {|lib| require lib}
-require 'rubypython'
+#require 'rubypython'
+
+$LOAD_PATH.push(File.expand_path(File.dirname(__FILE__)))
+require "evernote.rb"
+require "kindle.rb"
 
 IMPORT_FILE = "import.csv"
 
 Wordnik.configure do |config|
-      config.api_key = '<API-Key>'
+  config.api_key = '<API-Key>'
+  config.logger = Logger.new('/dev/null')
 end
 
-passwords = File.open('.pw', 'r')
-line = passwords.gets.chomp
-passwords.close
+kindleClient = KindleWords::Client.new
+evernoteClient = EvernoteWords::Client.new
 
-# pass in your Amazon credentials. Loads your books (not highlights) on init, so might take a while                                                             
-kindle = KindleHighlights::Client.new("<email>", line) 
-
-ca = kindle.books.select {|k| kindle.books[k].include? "Cloud Atlas"}
-
-# Get the key of the first book
-book_hash = ca.first.first
-
-highlights = kindle.highlights_for(book_hash)
+words = kindleClient.getWords + evernoteClient.getWords
 
 # Load the file.
 saved_words = YAML.load_stream(File.open('saved_words.yaml'))
@@ -39,23 +32,23 @@ end
 ws = saved_words[0].map{|w| w[:front] }
 
 def cleanup(s)
-  s.downcase.gsub /[\s,.:'"()]/, ''
+  s.downcase.gsub /[\s,.:'"()!?;]/, ''
 end
 
-highlights.map!{|h| cleanup(h['highlight'])}.uniq!
+words.map!{|w| w[:word] = cleanup(w[:word]); w}.uniq!
 
-highlights.keep_if do |h|
-  ! ws.include? h
+words.keep_if do |w|
+  ! ws.include? w[:word]
 end
 
-new_defs = highlights.map do |name|
-  next unless (defs = Wordnik.word.get_definitions(name, :use_canonical => true)) && 
+new_defs = words.map do |w|
+  next unless (defs = Wordnik.word.get_definitions(w[:word], :use_canonical => true)) && 
     !defs.empty?
   wdef = "Definitions:<br>"
   defs.each do |definition|
     wdef += " - " + definition['text'] + "<br>"
   end
-  if ((examples = Wordnik.word.get_examples(name)) && 
+  if ((examples = Wordnik.word.get_examples(w[:word])) && 
       (examples = examples['examples']) &&
       !examples.empty?)
     wdef += "<br>Examples:<br>"
@@ -63,7 +56,7 @@ new_defs = highlights.map do |name|
       wdef += " - " + example['text'] + "<br>"
     end
   end
-  if ((syns = Wordnik.word.get_related(name, :type => 'synonym')) && 
+  if ((syns = Wordnik.word.get_related(w[:word], :type => 'synonym')) && 
       !syns.empty? &&
       (syns = syns[0]) &&
       !syns.empty? &&
@@ -72,8 +65,7 @@ new_defs = highlights.map do |name|
     wdef += "<br>Synonyms:<br>"
     wdef += " - " + syns.join(', ')
   end
-  puts wdef
-  {:front => name, :back => wdef, :tag => 'kindle cloud-atlas'}
+  {:front => w[:word], :back => wdef, :tag => w[:tags].join(' ')}
 end.compact
 
 begin
