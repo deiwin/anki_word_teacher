@@ -44,7 +44,7 @@ words.keep_if do |w|
 end
 
 def getCanonicalForm(w)
-  w =~ /(((plural form)|(past tense)|(past participle)|(variant)).*of)/i
+  w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)).*of)|(\sa\s)/i
   if ($' && (can = cleanup($')) && !can.empty?)
     can
   else
@@ -74,30 +74,39 @@ def getWordDefs(w)
   end
 end
 
-@no_defs = []
+@messages = []
 
 def getWordInfo(w)
   defs = []
-  syns = []
+  syns = {}
 
   recDefs = lambda do |w|
     if (_defs = getWordDefs(w)) && !_defs.empty?
       defs += _defs
-      syns += getSynsFor(w)
+      _syns = getSynsFor(w)
+      if (!_syns.empty?)
+        syns[w] = _syns
+      end
       if (_defs.length == 1 && 
           w == _defs.first['word'] && 
           (can = getCanonicalForm(_defs.first['text'])))
+        @messages << "    Recursively looking for #{w} -> #{can}"
         recDefs.call(can)
       end
     else
-       @no_defs << "  No definition found for '#{w}'."
+       @messages << "  No definition found for '#{w}'."
     end
   end
 
   recDefs.call(w[:word])
   # Try mapping
   if defs.empty? && (map = @word_mappings[w[:word]])
-    recDefs.call(map)
+      @messages << "    Trying mapping #{w[:word]} -> #{map.inspect}"
+    if map.kind_of?(Array)
+      map.each{|m| recDefs.call(cleanup(m))}
+    else
+      recDefs.call(cleanup(map))
+    end
   end
   if defs.empty?
     nil
@@ -110,8 +119,9 @@ def getWordInfo(w)
     # Synonyms
     if (!syns.empty?)
       wdef += "<br>Synonyms:<br>"
-      wdef += " - " + syns.join(', ')
-      wdef += "<br>"
+      syns.each do |key, val|
+        wdef += " - #{key}: #{val.join(', ')}<br>"
+      end
     end
     # Examples
     if ((examples = Wordnik.word.get_examples(w[:word])) && 
@@ -135,7 +145,7 @@ ProgressBar.new("Wordnik", words.length) do |pbar|
   end.compact
 end
 
-@no_defs.each do |message|
+@messages.each do |message|
   puts message
 end
 
