@@ -15,6 +15,7 @@ that can be used to impot this data to Anki. Anki handles all the rest.
 
 Some of the things that need to be done listed in no particular order.
 
+ - Write down how to actually use this thing for now, as it isn't really intuitive
  - Move all the configurables into a single conf file
  - Instead of the saved_words.yaml file, get the already imported words from Anki
   - Might want to use a separate DB instead
