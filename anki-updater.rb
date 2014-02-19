@@ -1,26 +1,23 @@
-#!/usr/bin/ruby
-
-%w(rubygems wordnik yaml csv htmlentities green_shoes).each {|lib| require lib}
+%w(wordnik yaml csv htmlentities).each {|lib| require lib}
 $LOAD_PATH.push(File.expand_path(File.dirname(__FILE__)))
 require "evernote.rb"
 require "kindle.rb"
-#require 'rubypython'
 
 
 module StringUtils
   @@htmle = HTMLEntities.new
 
   class Canonizer
-    def self.formOf(w)
-      (w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)|(manner))[^.;]*of)/i) &&
+    def self.form_of(w)
+      (w =~ /(((alternative)|(plural)|(tense)|(participle)|(variant)|(manner)|(characteristic)|(spelling))[^.;]*of)/i) &&
       StringUtils.cleanup($')
     end
 
-    def self.aSomething(w)
-      (w =~ /^a\s([\w\-]+)/i) && StringUtils.cleanup($1)
+    def self.a_something(w)
+      (w =~ /^a\s([\w\-]+)[.;]/i) && StringUtils.cleanup($1)
     end
 
-    def self.inManner(w)
+    def self.in_manner(w)
       (w =~ /in.*?\s([\w\-]+)\smanner/i) && StringUtils.cleanup($1)
     end
 
@@ -29,12 +26,16 @@ module StringUtils
     end
 
     def self.cond(w)
-      (w =~ /condition\sof\sbeing\s([\w\-]+)/i) && StringUtils.cleanup($1)
+      (w =~ /(?:condition)|(?:state)\sof\sbeing\s([\w\-]+)/i) && StringUtils.cleanup($1)
+    end
+
+    def self.one(w)
+      (w =~ /one\swho(?:\shas)?\s([\w\-]+)/i) && StringUtils.cleanup($1)
     end
   end
 
   def self.getCanonicalForm(w)
-    (can = Canonizer.formOf(w) || Canonizer.aSomething(w) || Canonizer.inManner(w) || Canonizer.trait(w) || Canonizer.cond(w)) && !can.empty? && can
+    (can = Canonizer.form_of(w) || Canonizer.a_something(w) || Canonizer.in_manner(w) || Canonizer.trait(w) || Canonizer.cond(w) || Canonizer.one(w)) && !can.empty? && can
   end
 
   def self.cleanup(s)
@@ -43,7 +44,7 @@ module StringUtils
 
 end
 
-class Importer
+class AnkiImporter
   IMPORT_FILE = "import.csv"
   MAPPINGS_FILE = "mappings.yaml"
   SAVED_WORDS_FILE = "saved_words.yaml"
@@ -179,7 +180,7 @@ private
 
     # Force mapping
     if map = @word_mappings[w]
-      @logger.call "    Mapping #{w} -> #{map.inspect}"
+      @logger.call "  Mapping #{w} -> #{map.inspect}"
       if map.kind_of?(Array)
         map.each{|m| rec_defs.call(StringUtils.cleanup(m))}
       else
@@ -231,63 +232,4 @@ private
     end
   end
 
-end
-
-Shoes.app title: "Anki Importer 0.1" do
-  @logger = ->(s){puts s;@status.replace s}
-  @main_stack = stack do
-    button "Start fetching"
-    @p = progress left: 10, top: 250, width: width-20
-    flow do
-      para "Status: "
-      @status = para "Setting up"
-    end
-  end
-
-  Thread.new do
-    a = animate do |i|
-      @p.fraction = (i % 100) / 100.0
-    end
-
-    @imp = Importer.new @logger
-    @total_words = @imp.num_new_words
-    # Finish init
-    a.stop
-    @p.fraction = 0
-    @status.replace "Initialization finished"
-
-    def fetch_defs
-      i = 0
-      a = animate do |_|
-        @p.fraction = i / @total_words
-      end
-
-      @new_defs = @imp.fetch_new_defs -> {i+=1}
-      a.stop
-      @p.fraction = 0
-      @status.replace "Finished fetching word definitions"
-
-    end
-
-    fetch_defs
-
-    @main_stack.append do 
-      button "Refetch defs" do
-        fetch_defs
-      end
-      button "Finish" do
-        @export_thread = Thread.new do
-          @imp.export_csv do
-            @main_stack.append do
-              button "Done" do
-                @export_thread.run
-              end
-            end
-            Thread.stop
-            close
-          end
-        end
-      end
-    end
-  end
 end
