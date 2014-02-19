@@ -103,13 +103,13 @@ private
   end
 
   def init_word_mappings
-    @word_mappings ||= YAML.load_stream(File.open(MAPPINGS_FILE)).first
+    @word_mappings ||= YAML.load_file(MAPPINGS_FILE).first
   end
 
   def init_saved_words
     def get_saved_words
       # Load the file.
-      @saved_words_raw = YAML.load_stream(File.open(SAVED_WORDS_FILE))
+      @saved_words_raw = YAML.load_file(SAVED_WORDS_FILE)
 
       # Add a new key-value pair to the root of the first document.
       if @saved_words_raw.empty? || @saved_words_raw[0].nil?
