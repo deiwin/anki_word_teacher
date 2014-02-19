@@ -1,9 +1,9 @@
-= Anki Word Teacher =
+# Anki Word Teacher #
 
 This program will help you keep track of all the words you encounter throughout your day that
 you don't know or understand completely, but would like to.
 
-== How it works ==
+## How it works ##
 
 At the moment it has 2 sources for words: Kindle highlights and Evernote notes. If you start the
 software new words will be polled and then Wordnik is used to find definitions, synonyms and
@@ -11,7 +11,7 @@ common use-cases for those words. After that the words and definitions can be ex
 that can be used to impot this data to Anki. Anki handles all the rest.
 
 
-== TODO ==
+## TODO ##
 
 Some of the things that need to be done listed in no particular order.
 
