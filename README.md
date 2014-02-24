@@ -28,3 +28,5 @@ Some of the things that need to be done listed in no particular order.
  - Offer an option to select books for which to download highlights on the MMI
   - Every time a new book is added to Amazon, ask if definitions should be fetched for that book as well
  - __REFACTOR__
+
+[![Code Climate](https://codeclimate.com/github/deiwin/anki-word-teacher.png)](https://codeclimate.com/github/deiwin/anki-word-teacher)
