@@ -1,17 +1,17 @@
-require "digest/md5"
-require 'evernote-thrift'
-require 'nokogiri'
-
 module AnkiWordTeacher
   module EvernoteWords
     class Client
-      #attr :authToken, :noteStore
-      TAG = AnkiWordTeacher.configuration.evernote_tag
-      FILTER = "tag:#{TAG}"
+      require "digest/md5"
+      require 'evernote-thrift'
+      require 'nokogiri'
+
+      attr_accessor :tag, :filter
   
       def initialize(logger = ->(s){@logger.call s})
         @logger = logger
         @logger.call "Start Evernote init"
+        @tag = AnkiWordTeacher.configuration.evernote_tag
+        @filter = "tag:#{@tag}"
         initAuthToken
         initNoteStore
         initTagList
@@ -70,7 +70,7 @@ module AnkiWordTeacher
       def getWords
         @logger.call "Start fetching words from evernote"
         filter = Evernote::EDAM::NoteStore::NoteFilter.new
-        filter.words = FILTER
+        filter.words = @filter
         spec = Evernote::EDAM::NoteStore::NotesMetadataResultSpec.new
         notesMetadata = @noteStore.findNotesMetadata(@authToken, filter, 0, 9999, spec)
         @logger.call "Downloading content for " + notesMetadata.notes.length.to_s + " words"
@@ -78,7 +78,7 @@ module AnkiWordTeacher
         notesMetadata.notes.map do |meta|
           note = @noteStore.getNote(@authToken, meta.guid, true, false, false, false)
           content = Nokogiri::XML(note.content)
-          tags = @tagList.select{|t|note.tagGuids.include?(t.guid) && !t.name.eql?(TAG)}.map{|t| t.name} << "evernote"
+          tags = @tagList.select{|t|note.tagGuids.include?(t.guid) && !t.name.eql?(@tag)}.map{|t| t.name} << "evernote"
           # Get leaf divs
           content.xpath('//div[not(child::*)]').map do |div|
             {:word => div.content, :tags => tags}
