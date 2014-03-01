@@ -12,7 +12,7 @@ module AnkiWordTeacher
     SAVED_WORDS_FILE = AnkiWordTeacher.configuration.saved_words_file
     WORDNIK_API_KEY = AnkiWordTeacher.configuration.wordnik_api_key
   
-    def initialize(logger = -> (s){puts s})
+    def initialize(logger = ->(s){puts s})
       @logger = logger
       init_clients(@logger)
       init_wordnik
@@ -193,6 +193,5 @@ module AnkiWordTeacher
         end
       end
     end
-  
   end
 end
