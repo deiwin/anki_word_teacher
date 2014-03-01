@@ -8,7 +8,7 @@ module AnkiWordTeacher
       #attr :authToken, :noteStore
       FILTER = AnkiWordTeacher.configuration.evernote_filter
   
-      def initialize(logger = -> (s){@logger.call s})
+      def initialize(logger = ->(s){@logger.call s})
         @logger = logger
         @logger.call "Start Evernote init"
         initAuthToken

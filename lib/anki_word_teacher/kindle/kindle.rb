@@ -11,7 +11,7 @@ module AnkiWordTeacher
       EMAIL = AnkiWordTeacher.configuration.kindle_email
       PASS = AnkiWordTeacher.configuration.kindle_password
   
-      def initialize(logger = -> (s){puts s})
+      def initialize(logger = ->(s){puts s})
         @logger = logger
         @logger.call "Start Kindle init"
         initKindle
