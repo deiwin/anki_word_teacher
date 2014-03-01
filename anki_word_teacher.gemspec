@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.description = "Teach yourself words with Anki!"
   s.authors     = ["Deiwin Sarjas"]
   s.email       = 'deiwin.sarjas@gmail.com'
-  s.files       = Dir.glob("lib/**/*.rb")
+  s.files       = Dir["lib/**/*.rb"]
   s.executables << 'anki_word_teacher_gui'
   s.homepage    = 'https://github.com/deiwin/anki_word_teacher'
   s.license     = 'MIT'
