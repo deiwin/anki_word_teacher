@@ -1,8 +1,8 @@
 require 'wordnik'
 require 'yaml'
 require 'csv'
-require 'anki_word_teacher/evernote/evernote'
-require 'anki_word_teacher/kindle/kindle'
+require 'anki_word_teacher/evernote'
+require 'anki_word_teacher/kindle'
 require 'anki_word_teacher/string_utils'
 
 module AnkiWordTeacher
