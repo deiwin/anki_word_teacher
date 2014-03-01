@@ -6,7 +6,8 @@ module AnkiWordTeacher
   module EvernoteWords
     class Client
       #attr :authToken, :noteStore
-      FILTER = AnkiWordTeacher.configuration.evernote_filter
+      TAG = AnkiWordTeacher.configuration.evernote_tag
+      FILTER = "tag:#{TAG}"
   
       def initialize(logger = ->(s){@logger.call s})
         @logger = logger
@@ -77,7 +78,7 @@ module AnkiWordTeacher
         notesMetadata.notes.map do |meta|
           note = @noteStore.getNote(@authToken, meta.guid, true, false, false, false)
           content = Nokogiri::XML(note.content)
-          tags = @tagList.select{|t|note.tagGuids.include?(t.guid) && !t.name.eql?('#Word')}.map{|t| t.name} << "evernote"
+          tags = @tagList.select{|t|note.tagGuids.include?(t.guid) && !t.name.eql?(TAG)}.map{|t| t.name} << "evernote"
           # Get leaf divs
           content.xpath('//div[not(child::*)]').map do |div|
             {:word => div.content, :tags => tags}
