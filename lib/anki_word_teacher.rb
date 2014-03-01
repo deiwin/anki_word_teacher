@@ -1,3 +1,5 @@
+require 'rubygems'
+require 'bundler/setup'
 require 'anki_word_teacher/anki_updater'
 require 'anki_word_teacher/configuration'
 require 'logger'

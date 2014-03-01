@@ -1,0 +1,92 @@
+GIT
+  remote: git://github.com/parroty/kindle-your-highlights.git
+  revision: e96818bba5a944752d9cb645c12dccb073fe6dd2
+  branch: master
+  specs:
+    kindle-your-highlights (0.3.0)
+      jsonify (>= 0.4.1)
+      nokogiri (>= 1.5.0)
+      selenium-webdriver (>= 2.30.0)
+
+PATH
+  remote: .
+  specs:
+    anki_word_teacher (0.0.1)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    activemodel (4.0.3)
+      activesupport (= 4.0.3)
+      builder (~> 3.1.0)
+    activesupport (4.0.3)
+      i18n (~> 0.6, >= 0.6.4)
+      minitest (~> 4.2)
+      multi_json (~> 1.3)
+      thread_safe (~> 0.1)
+      tzinfo (~> 0.3.37)
+    addressable (2.3.5)
+    atomic (1.1.15)
+    builder (3.1.4)
+    childprocess (0.5.1)
+      ffi (~> 1.0, >= 1.0.11)
+    diff-lcs (1.2.5)
+    ethon (0.6.3)
+      ffi (>= 1.3.0)
+      mime-types (~> 1.18)
+    evernote (1.2.1)
+      thrift_client (>= 0.8.1)
+    ffi (1.9.3)
+    htmlentities (4.3.1)
+    i18n (0.6.9)
+    json (1.8.1)
+    jsonify (0.4.1)
+      multi_json (~> 1.3)
+    mime-types (1.25.1)
+    mini_portile (0.5.2)
+    minitest (4.7.5)
+    multi_json (1.8.4)
+    nokogiri (1.6.1)
+      mini_portile (~> 0.5.0)
+    rspec (2.14.1)
+      rspec-core (~> 2.14.0)
+      rspec-expectations (~> 2.14.0)
+      rspec-mocks (~> 2.14.0)
+    rspec-core (2.14.8)
+    rspec-expectations (2.14.5)
+      diff-lcs (>= 1.1.3, < 2.0)
+    rspec-mocks (2.14.6)
+    rubyzip (1.1.0)
+    selenium-webdriver (2.40.0)
+      childprocess (>= 0.5.0)
+      multi_json (~> 1.0)
+      rubyzip (~> 1.0)
+      websocket (~> 1.0.4)
+    thread_safe (0.2.0)
+      atomic (>= 1.1.7, < 2)
+    thrift (0.9.1)
+    thrift_client (0.9.2)
+      thrift (~> 0.9.0)
+    typhoeus (0.6.7)
+      ethon (~> 0.6.2)
+    tzinfo (0.3.38)
+    websocket (1.0.7)
+    wordnik (4.12)
+      activemodel (>= 3.0.3)
+      addressable (>= 2.2.4)
+      htmlentities (>= 4.2.4)
+      json (>= 1.4.6)
+      nokogiri (>= 1.4.4)
+      typhoeus (>= 0.2.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  anki_word_teacher!
+  evernote (~> 1.2, >= 1.2.1)
+  htmlentities
+  kindle-your-highlights!
+  nokogiri
+  rspec
+  wordnik (~> 4.12)
