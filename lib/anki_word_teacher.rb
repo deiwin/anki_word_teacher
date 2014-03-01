@@ -6,7 +6,7 @@ require 'logger'
 
 module AnkiWordTeacher
   class << self
-    attr_accessor: configuration, logger
+    attr_accessor :configuration, :logger
     def configure(&block)
       self.configuration ||= Configuration.new
       yield (configuration)
@@ -16,4 +16,5 @@ module AnkiWordTeacher
         raise "No Wordnik API key set."
       end
     end
+  end
 end
