@@ -2,7 +2,6 @@ require 'kindle_highlights'
 require 'yaml'
 require 'csv'
 require 'net/http'
-require 'xmlsimple'
 
 module KindleWords
   class Client
