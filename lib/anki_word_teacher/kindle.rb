@@ -15,7 +15,7 @@ module AnkiWordTeacher
   
       def initKindle
         # pass in your Amazon credentials. Loads your books (not highlights) on init, so might take a while                                                             
-        @kindle = KindleHighlights.new(AnkiWordTeacher.configuration.kindle_email, AnkiWordTeacher.configuration.kindle_password) do | h |
+        @kindle = KindleYourHighlights.new(AnkiWordTeacher.configuration.kindle_email, AnkiWordTeacher.configuration.kindle_password) do | h |
           if h.books.last
             @logger.call "loading... [#{h.books.last.title}] - #{h.books.last.last_update}"
           end
