@@ -50,7 +50,11 @@ module AnkiWordTeacher
   
   private
     def init_clients(logger)
-      @clients ||= [KindleWords::Client.new(logger), EvernoteWords::Client.new(logger)]
+      if !@clients
+        @clients = []
+        @clients << KindleWords::Client.new(logger) if AnkiWordTeacher.configuration.kindle_email
+        @clients << EvernoteWords::Client.new(logger) if AnkiWordTeacher.configuration.evernote_auth_token
+      end
     end
   
     def init_wordnik
