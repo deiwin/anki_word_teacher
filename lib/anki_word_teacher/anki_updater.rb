@@ -7,10 +7,6 @@ require 'anki_word_teacher/string_utils'
 
 module AnkiWordTeacher
   class AnkiImporter
-    IMPORT_FILE = AnkiWordTeacher.configuration.import_file
-    MAPPINGS_FILE = AnkiWordTeacher.configuration.mappings_file
-    SAVED_WORDS_FILE = AnkiWordTeacher.configuration.saved_words_file
-    WORDNIK_API_KEY = AnkiWordTeacher.configuration.wordnik_api_key
   
     def initialize(logger = ->(s){puts s})
       @logger = logger
@@ -36,16 +32,16 @@ module AnkiWordTeacher
     end
   
     def export_csv
-      CSV.open(IMPORT_FILE, 'wb', {:col_sep => "\t"}) do |csv|
+      CSV.open(AnkiWordTeacher.configuration.import_file, 'wb', {:col_sep => "\t"}) do |csv|
         @new_defs.each do |value|
           csv << value.values
         end
       end
   
-      yield IMPORT_FILE
+      yield AnkiWordTeacher.configuration.import_file
   
       begin
-        File.delete(IMPORT_FILE)
+        File.delete(AnkiWordTeacher.configuration.import_file)
       rescue
       end
   
@@ -59,19 +55,19 @@ module AnkiWordTeacher
   
     def init_wordnik
       Wordnik.configure do |config|
-        config.api_key = WORDNIK_API_KEY
+        config.api_key = AnkiWordTeacher.configuration.wordnik_api_key
         config.logger = Logger.new('/dev/null')
       end
     end
   
     def init_word_mappings
-      @word_mappings ||= YAML.load_file(MAPPINGS_FILE).first
+      @word_mappings ||= YAML.load_file(AnkiWordTeacher.configuration.mappings_file).first
     end
   
     def init_saved_words
       def get_saved_words
         # Load the file.
-        @saved_words_raw = YAML.load_file(SAVED_WORDS_FILE)
+        @saved_words_raw = YAML.load_file(AnkiWordTeacher.configuration.saved_words_file)
   
         # Add a new key-value pair to the root of the first document.
         if @saved_words_raw.empty? || @saved_words_raw[0].nil?
@@ -188,7 +184,7 @@ module AnkiWordTeacher
     def save_exported_words
       unless @new_defs.empty?
         new_saved_words = @saved_words_raw[0] + @new_defs
-        File.open(SAVED_WORDS_FILE, 'w') do |file|
+        File.open(AnkiWordTeacher.configuration.saved_words_file, 'w') do |file|
           file.write(YAML.dump(new_saved_words))
         end
       end
