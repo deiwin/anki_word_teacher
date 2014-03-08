@@ -1,10 +1,9 @@
 #!/usr/bin/ruby
 
-%w(green_shoes).each {|lib| require lib}
-$LOAD_PATH.push(File.expand_path(File.dirname(__FILE__)))
-require "anki-updater.rb"
+require 'green_shoes'
+require 'anki-word-teacher'
 
-Shoes.app title: "Anki Importer 0.1" do
+Shoes.app title: "Anki Importer 0.0.1" do
   @logger = ->(s){puts s;@status.replace s}
   @main_stack = stack do
     button "Start fetching"
