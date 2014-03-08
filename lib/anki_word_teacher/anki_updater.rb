@@ -65,7 +65,8 @@ module AnkiWordTeacher
     end
   
     def init_word_mappings
-      @word_mappings ||= YAML.load_file(AnkiWordTeacher.configuration.mappings_file).first
+      @word_mappings ||= YAML.load_file(AnkiWordTeacher.configuration.mappings_file)
+      @word_mappings ||= {}
     end
   
     def init_saved_words
@@ -74,6 +75,7 @@ module AnkiWordTeacher
         @saved_words_raw = YAML.load_file(AnkiWordTeacher.configuration.saved_words_file)
   
         # Add a new key-value pair to the root of the first document.
+	@saved_words_raw ||= []
         if @saved_words_raw.empty? || @saved_words_raw[0].nil?
           @saved_words_raw[0] = []
         end
