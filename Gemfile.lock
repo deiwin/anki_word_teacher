@@ -1,6 +1,6 @@
 GIT
-  remote: git://github.com/parroty/kindle-your-highlights.git
-  revision: e96818bba5a944752d9cb645c12dccb073fe6dd2
+  remote: git://github.com/deiwin/kindle-your-highlights
+  revision: 4953ceec9c524dbe44a3d20845c68c2453bfd51f
   branch: master
   specs:
     kindle-your-highlights (0.3.0)
