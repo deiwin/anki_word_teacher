@@ -1,4 +1,5 @@
 # Anki Word Teacher #
+[![Code Climate](https://codeclimate.com/github/deiwin/anki-word-teacher.png)](https://codeclimate.com/github/deiwin/anki-word-teacher) [![Build Status](https://travis-ci.org/deiwin/anki_word_teacher.svg)](https://travis-ci.org/deiwin/anki_word_teacher)  [![Coverage Status](https://coveralls.io/repos/deiwin/anki_word_teacher/badge.png)](https://coveralls.io/r/deiwin/anki_word_teacher)
 
 This program will help you keep track of all the words you encounter throughout your day that
 you don't know or understand completely, but would like to.
@@ -29,4 +30,4 @@ Some of the things that need to be done listed in no particular order.
   - Every time a new book is added to Amazon, ask if definitions should be fetched for that book as well
  - __REFACTOR__
 
-[![Code Climate](https://codeclimate.com/github/deiwin/anki-word-teacher.png)](https://codeclimate.com/github/deiwin/anki-word-teacher)
+
